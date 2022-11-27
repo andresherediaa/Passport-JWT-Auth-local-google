@@ -9,7 +9,7 @@ passport.use(
   new GoogleStrategy(
     {
       // options for strategy
-      callbackURL: 'http://localhost:3000/auth/google/callback/',
+      callbackURL: 'http://localhost:3000/auth/google/callback',
       clientID: process.env.CLIENT_ID,
       clientSecret: process.env.CLIENT_SECRET
     },

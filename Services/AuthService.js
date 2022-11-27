@@ -1,12 +1,12 @@
-const jwt = require('jsonwebtoken');
-
+const jwt = require("jsonwebtoken");
 
 // check if Token exists on request Header and attach token to request as attribute
 exports.checkTokenMW = (req, res, next) => {
     // Get auth header value
-    const bearerHeader = req.headers['authorization'];
-    if (typeof bearerHeader !== 'undefined') {
-        req.token = bearerHeader.split(' ')[1];
+    const token = req.cookies.access_token;
+    //const bearerHeader = req.headers["authorization"]; if you are usin tokenin localstorege
+    if (typeof token !== "undefined") {
+        req.token = token;
         next();
     } else {
         res.sendStatus(403);
@@ -15,22 +15,34 @@ exports.checkTokenMW = (req, res, next) => {
 
 // Verify Token validity and attach token data as request attribute
 exports.verifyToken = (req, res) => {
-    jwt.verify(req.token, 'secretkey', (err, authData) => {
-        if(err) {
+    jwt.verify(req.token, process.env.JWT_SECRET_KEY, (err, authData) => {
+        if (err) {
             res.sendStatus(403);
         } else {
-            return req.authData = authData;
+            return (req.authData = authData);
         }
-    })
+    });
 };
 
 // Issue Token
 exports.signToken = (req, res) => {
-    jwt.sign({userId: req.user._id}, 'secretkey', {expiresIn:'5 min'}, (err, token) => {
-        if(err){
-            res.sendStatus(500);
-        } else {
-            res.json({token});
+    jwt.sign(
+        { userId: req.user._id },
+        process.env.JWT_SECRET_KEY,
+        { expiresIn: "1 min" },
+        (err, token) => {
+            if (err) {
+                res.sendStatus(500);
+            } else {
+                return res
+                    .cookie("access_token", token, {
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === "production",
+                        maxAge: 60000 * 60 * 24,
+                    })
+                    .status(200)
+                    .json({ message: "Logged in successfully 😊 👌" });
+            }
         }
-    });
-}
+    );
+};
