@@ -4,12 +4,14 @@ require("./Model/User");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const passport = require("passport");
-const authService = require("./Services/AuthService");
-const passportSetup = require("./config/passport-setup");
+const authServices = require("./Services/AuthServices/index");
 const cookieParser = require("cookie-parser");
+const errorservice = require("./Services/ErrorService/errorService");
 //const flash = require("express-flash");
 
 require("dotenv").config();
+require("./config/passport-setup");
+require("./config/passport-local-setup");
 
 const mongodbUri = process.env.MONGO_URI;
 mongoose.set("useFindAndModify", false);
@@ -45,11 +47,6 @@ app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x
 app.engine("html", require("ejs").renderFile);
 app.use(express.static(__dirname + "/public"));
 
-app.use(function (err, req, res, next) {
-    console.error(err.stack);
-    res.status(500).send("Something broke!");
-});
-
 // ############# GOOGLE AUTHENTICATION ################
 // this will call passport-setup.js authentication in the config directory
 
@@ -68,19 +65,18 @@ app.get(
     "/auth/google/callback",
     passport.authenticate("google", { session: false }),
     (req, res) => {
-        authService.signToken(req, res);
+        authServices.signToken(req, res);
     }
 );
 
 // route to check token with postman.
 // using middleware to check for authorization header
-app.get("/verify", authService.checkTokenMW, (req, res) => {
-    authService.verifyToken(req, res);
+app.get("/verify", authServices.checkTokenMW, (req, res) => {
+    authServices.verifyToken(req, res);
     if (null === req.authData) {
         res.sendStatus(403);
     } else {
-        console.log("verify", req.authData);
-        res.json(req.authData);
+        res.status(200).json(req.authData);
     }
 });
 
@@ -98,18 +94,24 @@ app.get("/auth/signin", (req, res) => {
 });
 
 //POST ROUTES
-app.get("/auth/signup", (req, res) => {
-  res.render("local/signup.ejs");
+app.post("/auth/signup", (req, res, next) => {
+    authServices.addLocalUser(req, res, next);
 });
 
-app.get("/auth/signin", (req, res) => {
-  res.render("local/signin.ejs");
-});
+app.post(
+    "/auth/signin",
+    passport.authenticate("local", {
+        session: false,
+    }),
+    (req, res) => {
+        authServices.signToken(req, res);
+    }
+);
 
+//error handler for request
+app.use(errorservice);
 
 //LISTEN SERVER
 app.listen(3000, function () {
     console.log("Express app listening on port 3000!");
 });
-
-
